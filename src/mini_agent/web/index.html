@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="miniagent-token" content="__SESSION_TOKEN__">
+  <meta name="description" content="Mini Agent 本地编程操作台 — 从想法到代码，每一步都看得见。">
+  <title>Mini Agent · 本地编程操作台</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="/" aria-label="Mini Agent 首页"><span class="brand-mark">&gt;_</span><span>mini<span class="brand-light">agent</span><small>LOCAL CODING WORKSPACE</small></span></a>
+      <button id="new-task" class="button primary new-task"><span class="plus">＋</span> 新建任务 <kbd>⌘ K</kbd></button>
+      <div class="side-label"><span>工作空间</span><span class="tiny-badge">LOCAL</span></div>
+      <button class="nav-item active" id="workspace-nav"><span aria-hidden="true">▦</span> 编程工作台 <span class="nav-arrow">↗</span></button>
+      <div class="history-title"><span>最近任务</span><span id="history-count">0</span></div>
+      <nav id="history" class="history" aria-label="最近任务"><div class="history-empty">让第一个想法开始运行。</div></nav>
+      <div class="sidebar-bottom">
+        <div class="model-card"><span class="model-icon">✦</span><div><span class="small-label">当前模型</span><strong id="model-label">读取配置中</strong></div><span class="status-dot" id="model-dot"></span></div>
+        <button id="help-button" class="help-link"><span>ⓘ</span> 使用指南 <span>↗</span></button>
+        <div class="sidebar-footer">MINI AGENT <span>v0.2 · Web</span></div>
+      </div>
+    </aside>
+
+    <main class="main-shell">
+      <header class="topbar"><div class="breadcrumb">工作台 <span>/</span> <strong id="breadcrumb-title">新任务</strong></div><div class="connection"><button id="toggle-inspector" class="icon-button" aria-label="打开项目文件和运行设置" aria-expanded="false">⚙</button><span class="status-dot" id="connection-dot"></span><span id="connection-label">正在连接本地服务</span><span class="divider"></span><span class="local-label">仅本机</span></div></header>
+      <div id="notice" class="notice" hidden role="status"></div>
+      <div class="workspace-layout">
+        <section class="work-area">
+          <div class="conversation-main">
+          <div class="page-heading"><div><div class="eyebrow">YOUR IDEAS. REAL CODE.</div><h1>编程工作台<span class="blue-period">.</span></h1><p>描述你的任务。让 Agent 动手，每一步由你掌控。</p></div><button id="export-button" class="button ghost" disabled>↓ 导出记录</button></div>
+          <div class="workspace-bar"><span class="folder-icon">▱</span><span class="workspace-bar-label">工作区</span><code id="workspace-label">正在加载…</code><button id="change-workspace" class="text-button">切换 ↗</button></div>
+          <div class="run-toolbar"><div class="tabs" role="tablist"><button class="tab selected" data-view="timeline" role="tab" aria-selected="true">任务与执行</button><button class="tab" data-view="logs" role="tab" aria-selected="false">原始日志 <span id="log-count">0</span></button></div><button id="return-active" class="text-button" hidden>返回运行中任务 ↗</button><div id="run-status" class="run-status"><span class="status-dot neutral"></span>准备就绪</div></div>
+
+          <div id="feed" class="feed" aria-live="polite" aria-label="任务执行过程">
+<div class="welcome"><div class="welcome-symbol"><span>&gt;_</span><i>✦</i></div><h2>下一个想法，从这里开始</h2><p>修复一个 Bug，实现一个功能，或读懂一段代码。<br>你的本地编程伙伴已经准备就绪。</p><div class="starter-grid"><button data-template="zero" class="starter"><span class="starter-icon">↔</span><strong>实现一个算法 <span>↗</span></strong><small>分析需求，实现算法并验证结果</small></button><button data-template="test" class="starter"><span class="starter-icon">✓</span><strong>让测试重新通过 <span>↗</span></strong><small>定位失败原因，修复后再验证</small></button><button data-template="review" class="starter"><span class="starter-icon">⌕</span><strong>读懂我的项目 <span>↗</span></strong><small>梳理结构，解释核心实现</small></button></div><div class="capability-row"><span>▤ 读取文件</span><span>⌁ 精确编辑</span><span>▱ 写入代码</span><span>›_ 执行命令</span></div></div>
+          </div>
+
+          <section id="approval-card" class="approval-card" hidden aria-label="操作审批"></section>
+          <section class="composer"><label class="sr-only" for="task-input">编程任务</label><textarea id="task-input" rows="3" maxlength="30000"></textarea><div class="composer-bottom"><span class="composer-hint"><span id="composer-mode">◈ 逐次审批</span><span>Enter 换行 · ⌘ / Ctrl + Enter 发送</span></span><div class="composer-actions"><button id="stop-button" class="button danger-outline" hidden>■ 停止任务</button><button id="send-button" class="button primary">开始任务 <span>↗</span></button></div></div></section>
+          </div>
+          <div class="under-composer"><span>◇ 密钥留在本机 · 不上传到第三方网页</span><span id="character-count">0 / 30,000</span></div>
+        </section>
+
+        <aside class="inspector">
+          <div class="inspector-main">
+          <section class="panel file-panel"><div class="panel-heading"><h2>项目文件</h2><button id="refresh-files" class="icon-button" title="刷新文件列表" aria-label="刷新文件列表">↻</button></div><div class="file-breadcrumb"><button id="parent-folder" class="text-button" title="返回上一级">↑</button><span id="folder-label">workspace /</span></div><div id="file-list" class="file-list"><p class="muted">读取工作区中…</p></div><div class="panel-footer">点击文件预览 · 凭据文件已隐藏</div></section>
+          <section class="panel settings-panel"><div class="panel-heading"><h2>运行设置</h2><span class="subtle-icon">⚙</span></div><label class="field-label" for="mode-select">操作权限</label><select id="mode-select"><option value="ask">逐次审批（推荐）</option><option value="read_only">只读分析</option></select><p class="field-help" id="mode-help">写入文件与执行命令前，等待你的确认。</p><div class="setting-row"><label for="iteration-limit">最大循环次数</label><input type="number" id="iteration-limit" min="1" max="50" value="20"></div><label class="check-row"><input type="checkbox" id="save-session" checked><span>保存本机会话日志</span></label></section>
+          <section class="panel metrics-panel"><div class="panel-heading"><h2>本次运行</h2><span id="elapsed-label">—</span></div><div class="metrics"><div><strong id="metric-iterations">0<span>/20</span></strong><small>模型循环</small></div><div><strong id="metric-tools">0</strong><small>工具调用</small></div></div><div class="metric-footer"><span>已完成文件写入</span><strong id="metric-files">0</strong></div></section>
+          </div>
+          <div class="safety-note"><span>◇</span><div><strong>你始终拥有决定权</strong><p>拒绝审批会停止任务；停止不会撤销已完成的修改。Shell 并非完整沙箱。</p></div></div>
+        </aside>
+      </div>
+    </main>
+  </div>
+
+  <dialog id="workspace-dialog" class="modal"><form id="workspace-form"><div class="modal-heading"><div><span class="eyebrow">WORKSPACE</span><h2>切换工作区</h2></div><button type="button" class="icon-button close-dialog" aria-label="关闭">×</button></div><p>填写本机项目文件夹的完整路径。Agent 将在这里读取和修改文件。</p><label class="field-label" for="workspace-input">文件夹绝对路径</label><input id="workspace-input" required placeholder="/Users/你的用户名/Desktop"><p class="field-help">建议选择独立项目文件夹，避免包含无关的私人文件。</p><p id="workspace-error" class="error-text" role="alert"></p><div class="modal-actions"><button type="button" class="button ghost close-dialog">取消</button><button class="button primary" type="submit">使用此工作区</button></div></form></dialog>
+  <dialog id="file-dialog" class="modal file-modal"><div class="modal-heading"><div><span class="eyebrow">FILE PREVIEW · READ ONLY</span><h2 id="preview-title">文件预览</h2></div><button class="icon-button close-dialog" aria-label="关闭">×</button></div><pre id="preview-content"></pre><div class="modal-actions"><button id="mention-file" class="button primary">将文件加入任务 ↗</button></div></dialog>
+  <dialog id="help-dialog" class="modal"><div class="modal-heading"><div><span class="eyebrow">QUICK START</span><h2>让想法开始运行</h2></div><button class="icon-button close-dialog" aria-label="关闭">×</button></div><ol class="help-steps"><li><strong>选择工作区</strong><p>切换到需要处理的项目文件夹，右侧可预览文件。</p></li><li><strong>描述任务</strong><p>支持多行粘贴，写明目标、约束和验证方式。</p></li><li><strong>查看并批准操作</strong><p>检查修改差异或完整命令，点击允许或拒绝。拒绝会停止本次任务。</p></li><li><strong>核对结果</strong><p>“已结束”表示模型停止，不等于测试通过。展开命令结果核对退出码与输出。</p></li></ol><div class="help-tip">模型配置在项目 .env 文件中完成，修改后重启服务。网页不接收或保存 API 密钥。每次“开始任务”都会创建独立上下文；最近任务仅在本次服务运行期间保留。</div></dialog>
+  <div id="toast" class="toast" role="status" hidden></div>
+</body>
+</html>
