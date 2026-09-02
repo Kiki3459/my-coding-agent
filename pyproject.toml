@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mini-coding-agent"
+version = "0.2.2"
+description = "A small, explainable coding agent built on native model tool calling"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "openai>=1.50.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0,<10.0"]
+
+[project.scripts]
+mini-agent = "mini_agent.cli:main"
+mini-agent-web = "mini_agent.web_server:main"
+
+[tool.setuptools.package-data]
+mini_agent = ["web/*.html", "web/*.css", "web/*.js", "web/*.svg"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
