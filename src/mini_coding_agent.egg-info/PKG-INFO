@@ -1,0 +1,293 @@
+Metadata-Version: 2.4
+Name: mini-coding-agent
+Version: 0.1.0
+Summary: A small, explainable coding agent built on native model tool calling
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Requires-Dist: openai>=1.50.0
+Provides-Extra: dev
+Requires-Dist: pytest<10.0,>=8.0; extra == "dev"
+
+# Mini Coding Agent
+
+一个不依赖 Agent 框架、基于模型原生 Tool Calling 的本地命令行编程智能体。它自行实现对话历史、TAOR/ReAct 循环、工具注册与执行、审批、上下文压缩、终止条件和错误恢复。
+
+## 设计目标
+
+项目刻意保持“小而完整”：模型负责判断下一步做什么，程序只负责可靠地调用模型、执行工具、记录结果并控制循环。
+
+```text
+用户任务
+   ↓
+准备系统提示词、历史和工具 Schema
+   ↓
+调用模型 ────── 无工具调用 ─────→ 最终回答
+   ↓ 有工具调用
+校验参数 → 权限审批 → 本地执行
+   ↓
+结构化 ToolResult 写回历史
+   └────────────────────────────→ 下一轮
+```
+
+循环在以下任一条件出现时终止：模型给出最终回答、达到最大迭代次数、连续三次发出相同无效调用、模型请求重试后仍失败，或用户取消。
+
+## 功能
+
+- OpenAI 兼容 Chat Completions 与原生 Tool Calling；
+- `read`：带行号读取 UTF-8 文件，支持分页和截断；
+- `write`：原子创建或覆盖文件；
+- `edit`：只允许唯一精确匹配的字符串替换；
+- `bash`：执行非交互式命令，返回退出码、stdout 和 stderr；
+- workspace 路径隔离，包括父目录、绝对路径和符号链接逃逸检查；
+- 交互审批、只读策略和自动审批策略；
+- JSONL 会话日志；
+- 工具输出截断及历史摘要压缩；
+- 18 项完全离线的单元测试；
+- 可用于两分钟视频的故障修复 Demo。
+
+项目只依赖普通模型 API 客户端，不依赖 LangChain、LlamaIndex、OpenAI Agents SDK、Claude Agent SDK、AutoGen、CrewAI 或 MCP SDK。
+
+## 环境要求
+
+- Python 3.11 或更高版本；
+- 一个支持 OpenAI Chat Completions Tool Calling 格式的模型接口；
+- macOS、Linux 或 Windows。
+
+## 安装
+
+进入项目目录：
+
+```bash
+cd mini-coding-agent
+```
+
+创建虚拟环境：
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+Windows PowerShell 使用：
+
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+```
+
+安装项目：
+
+```bash
+python -m pip install -e .
+```
+
+如果还要使用 pytest：
+
+```bash
+python -m pip install -e '.[dev]'
+```
+
+## 模型配置
+
+推荐复制示例文件：
+
+```bash
+cp .env.example .env
+```
+
+填写：
+
+```dotenv
+OPENAI_API_KEY=你的密钥
+OPENAI_MODEL=支持工具调用的模型名
+OPENAI_BASE_URL=OpenAI兼容接口地址
+```
+
+使用 OpenAI 官方默认地址时，`OPENAI_BASE_URL` 可以留空。也可以不创建 `.env`，直接设置环境变量：
+
+```bash
+export OPENAI_API_KEY='你的密钥'
+export OPENAI_MODEL='模型名'
+export OPENAI_BASE_URL='兼容接口地址'
+```
+
+`.env` 已被 `.gitignore` 排除。不要在 README、视频、终端录屏或 Git 历史中公开密钥。
+
+## 基本使用
+
+分析当前目录：
+
+```bash
+mini-agent .
+```
+
+分析另一个项目：
+
+```bash
+mini-agent /absolute/path/to/project
+```
+
+进入交互界面后输入任务：
+
+```text
+agent> 运行项目测试，定位失败原因，完成最小修复并再次运行测试
+```
+
+本地写文件、编辑文件或执行 Shell 前，程序默认显示请求并询问：
+
+```text
+[approval:write] edit file: calculator.py
+Allow? [y/N]
+```
+
+输入 `y` 或 `yes` 允许，其他输入拒绝。拒绝会作为结构化工具结果返回模型，不会让 Agent 崩溃。
+
+交互命令：
+
+- `/help`：显示帮助；
+- `/clear`：清除当前内存对话，保留系统提示词；
+- `/exit` 或 `/quit`：退出。
+
+## 单任务模式
+
+执行一个任务后退出：
+
+```bash
+mini-agent ./demo_workspace --task '运行测试，定位失败原因，完成最小修复并复测'
+```
+
+默认仍会逐次询问高风险操作。对完全可信、专门准备的 Demo 工作区，可以自动批准：
+
+```bash
+mini-agent ./demo_workspace --yes \
+  --task '运行测试，定位失败原因，完成最小修复并复测；不要修改测试'
+```
+
+`--yes` 会允许模型修改文件并执行任意 Shell 命令，只能用于隔离且可信的工作区。
+
+只读模式：
+
+```bash
+mini-agent /path/to/project --read-only
+```
+
+它允许 `read`，拒绝 `write`、`edit` 和 `bash`。由于 Bash 也可用于只读检查，但无法可靠判断命令是否有副作用，因此只读模式选择完全禁用 Bash。
+
+## 常用参数
+
+```text
+--task TEXT                   单次任务
+--model MODEL                 覆盖 OPENAI_MODEL
+--base-url URL                覆盖 OPENAI_BASE_URL
+--env-file PATH               指定配置文件，默认 .env
+--max-iterations N            最大模型循环次数，默认 20
+--context-budget N            上下文预算估计值，默认 24000 tokens
+--yes                         自动批准写操作和 Shell
+--read-only                   拒绝写操作和 Shell
+--no-session                  不保存 JSONL 会话
+--session-id ID               指定会话日志文件名
+--no-project-instructions     不加载 workspace/AGENTS.md
+```
+
+完整参数：
+
+```bash
+mini-agent --help
+```
+
+## Demo
+
+`demo_workspace` 中的计算器故意包含一个错误。初始验证：
+
+```bash
+cd demo_workspace
+python -m unittest -v
+```
+
+应看到四项测试中一项失败。回到项目根目录后运行 Agent：
+
+```bash
+mini-agent ./demo_workspace --task \
+  '阅读 README，运行测试，定位失败原因，进行最小修复；不要修改测试。修复后再次运行完整测试并总结。'
+```
+
+推荐视频演示顺序：
+
+1. 展示初始失败测试；
+2. 启动 Agent；
+3. 允许运行测试；
+4. 展示 Agent 读取源码；
+5. 允许精确编辑；
+6. 允许再次运行测试；
+7. 展示测试通过和最终总结。
+
+重复录制前，将 `demo_workspace/calculator.py` 中 `return a / b` 恢复为 `return a // b`。
+
+## 测试
+
+无需安装 pytest，使用标准库即可运行：
+
+```bash
+PYTHONPATH=src python -m unittest discover -s tests -v
+```
+
+安装开发依赖后也可以：
+
+```bash
+pytest -q
+```
+
+测试覆盖路径逃逸、符号链接逃逸、文件读写、唯一编辑、审批拒绝、Shell 成功/失败/超时、多工具调用、Tool Call ID 配对、迭代限制、重复无效调用、模型错误、会话日志和上下文压缩降级。
+
+## 上下文管理
+
+程序使用 `序列化字符数 / 4` 估算 Token。这是供应商无关的启发式估算，不是精确 tokenizer。
+
+接近预算时：
+
+1. 保留系统提示词和原始用户任务；
+2. 保留最近完整消息；
+3. 调用同一模型总结更早历史；
+4. 摘要失败时退化为确定性的最近事实提取；
+5. 避免让保留历史从孤立的 Tool Result 开始。
+
+工具输出单独限制长度，超限时保留头尾并标记省略字符数。
+
+## 会话日志
+
+默认保存在目标 workspace：
+
+```text
+<workspace>/.mini_agent/sessions/<timestamp>.jsonl
+```
+
+目录应加入目标项目的 `.gitignore`。日志不会主动读取或记录 API key，但用户任务、模型消息和工具结果可能包含项目内容；处理敏感项目时使用 `--no-session`。
+
+## 安全边界
+
+文件工具会检查解析后的路径是否仍在 workspace 内，并能阻止常见目录和符号链接逃逸。
+
+Shell 不是安全沙箱：
+
+- `cwd=workspace` 只设置当前目录；
+- Shell 仍可能访问其他路径、网络和系统资源；
+- 危险字符串过滤只能防止明显误操作，不能作为安全边界；
+- 默认审批只能降低风险，不能替代容器或操作系统权限隔离。
+
+不要在包含重要未备份数据的目录中使用 `--yes`。高风险场景应在容器、临时副本或低权限账户中运行。
+
+## 与 my-pi-agent 的关系
+
+本项目借鉴其“模型边界、工具注册、结构化错误、循环终止和上下文管理”的设计经验，但重新实现为面向考核的最小独立产品。它没有复制完整框架，也没有包含 MCP、Plugin、Skill、Subagent、Task、Memory 或复杂 Extension 系统。
+
+这样裁剪的目的，是让核心循环和每项设计决策都能在面试中清楚解释。
+
+## 已知限制
+
+- 仅实现 OpenAI 兼容的 Chat Completions Tool Calling；
+- 不提供操作系统级 Shell 沙箱；
+- Token 数为近似估算；
+- 会话日志当前用于审计，不支持从磁盘恢复继续运行；
+- 工具按模型返回顺序串行执行，以优先保证修改顺序确定；
+- 没有 TUI、MCP、子 Agent、插件和远程代码执行。
+
